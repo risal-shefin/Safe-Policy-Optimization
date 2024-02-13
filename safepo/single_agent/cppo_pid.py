@@ -137,6 +137,7 @@ def main(args, cfg_env=None):
     logger = EpochLogger(
         log_dir=args.log_dir,
         seed=str(args.seed),
+        wandb_project_name = "CPPO_PID"
     )
     rew_deque = deque(maxlen=50)
     cost_deque = deque(maxlen=50)

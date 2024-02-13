@@ -142,6 +142,7 @@ def main(args, cfg_env=None):
     logger = EpochLogger(
         log_dir=args.log_dir,
         seed=str(args.seed),
+        wandb_project_name = "Safepo-CUP"
     )
     rew_deque = deque(maxlen=50)
     cost_deque = deque(maxlen=50)

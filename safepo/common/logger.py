@@ -17,6 +17,7 @@
 import atexit
 import csv
 import json
+from operator import truediv
 import os
 import os.path as osp
 import warnings
@@ -25,6 +26,7 @@ import joblib
 import numpy as np
 import torch
 from torch.utils.tensorboard.writer import SummaryWriter
+import wandb
 
 # from safepo.common.mpi_tools import proc_id, mpi_statistics_scalar
 
@@ -121,6 +123,7 @@ class Logger:
         level: int = 1,
         use_tensorboard=True,
         verbose=True,
+        wandb_project_name = None
     ):
         self.log_dir = log_dir
         self.debug = debug
@@ -150,6 +153,12 @@ class Logger:
         # Setup tensor board logging if enabled and MPI root process
         if use_tensorboard:
             self.summary_writer = SummaryWriter(os.path.join(self.log_dir, "tb"))
+
+        self.use_wandb = False
+        if wandb_project_name is not None:
+            self.use_wandb = True
+            wandb.init(project = wandb_project_name)
+
 
     def close(self):
         """Close the output file.
@@ -301,11 +310,17 @@ class Logger:
 
             self._csv_writer.writerow(self.log_current_row.values())
             self.output_file.flush()
-
+        
         if self.use_tensorboard:
             for key, val in self.log_current_row.items():
                 self.summary_writer.add_scalar(key, val, global_step=self.epoch)
 
+        if self.use_wandb:
+            wandb_log_dict = dict()
+            for key, val in self.log_current_row.items():
+                wandb_log_dict[key] = val
+            wandb.log(wandb_log_dict)
+                
         # free logged information in all processes...
         self.log_current_row.clear()
         self.first_row = False
@@ -322,6 +337,7 @@ class EpochLogger(Logger):
         level: int = 1,
         use_tensorboard=True,
         verbose=True,
+        wandb_project_name = None
     ):
         super().__init__(
             log_dir=log_dir,
@@ -331,6 +347,7 @@ class EpochLogger(Logger):
             level=level,
             use_tensorboard=use_tensorboard,
             verbose=verbose,
+            wandb_project_name = wandb_project_name
         )
         self.epoch_dict = dict()
 
