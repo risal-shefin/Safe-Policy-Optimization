@@ -20,6 +20,7 @@ import os
 import random
 import sys
 import time
+import math
 from collections import deque
 
 import numpy as np
@@ -137,7 +138,8 @@ def main(args, cfg_env=None):
     logger = EpochLogger(
         log_dir=args.log_dir,
         seed=str(args.seed),
-        wandb_project_name = "CPPO_PID"
+        wandb_project_name = "CPPO_PID",
+        task_name = args.task
     )
     rew_deque = deque(maxlen=50)
     cost_deque = deque(maxlen=50)
@@ -155,9 +157,13 @@ def main(args, cfg_env=None):
         np.zeros(args.num_envs),
         np.zeros(args.num_envs),
     )
+    best_reward = -math.inf
     # training loop
     for epoch in range(epochs):
         rollout_start_time = time.time()
+        current_reward = -math.inf
+        rewards_cur_epoch = []
+        costs_cur_epoch = []
         # collect samples until we have enough to update
         for steps in range(local_steps_per_epoch):
             with torch.no_grad():
@@ -224,6 +230,9 @@ def main(args, cfg_env=None):
                                 "Metrics/EpLen": np.mean(len_deque),
                             }
                         )
+                        rewards_cur_epoch.append(ep_ret[idx])
+                        costs_cur_epoch.append(ep_cost[idx])
+                        current_reward = max(current_reward, ep_ret[idx])
                         ep_ret[idx] = 0.0
                         ep_cost[idx] = 0.0
                         ep_len[idx] = 0.0
@@ -353,6 +362,8 @@ def main(args, cfg_env=None):
             logger.log_tabular("Metrics/EpRet")
             logger.log_tabular("Metrics/EpCost")
             logger.log_tabular("Metrics/EpLen")
+            logger.log_tabular("Metrics/EpochMeanEpRet", np.mean(rewards_cur_epoch))
+            logger.log_tabular("Metrics/EpochMeanEpCost", np.mean(costs_cur_epoch))
             if args.use_eval:
                 logger.log_tabular("Metrics/EvalEpRet")
                 logger.log_tabular("Metrics/EvalEpCost")
@@ -375,12 +386,18 @@ def main(args, cfg_env=None):
             logger.log_tabular("Value/CostAdv", data["adv_c"].mean().item())
 
             logger.dump_tabular()
-            if (epoch+1) % 100 == 0 or epoch == 0:
+            if epoch == 0 or current_reward > best_reward:
+                best_reward = max(best_reward, current_reward)
                 logger.torch_save(itr=epoch)
                 if args.task not in isaac_gym_map.keys():
                     logger.save_state(
                         state_dict={
                             "Normalizer": env.obs_rms,
+                            "actor_state_dict": policy.actor.state_dict(),
+                            "reward_critic_state_dict": policy.reward_critic.state_dict(),
+                            "cost_critic_state_dict": policy.cost_critic.state_dict(),
+                            "reward_critic_optimizer_state_dict": reward_critic_optimizer.state_dict(),
+                            "cost_critic_optimizer_state_dict": cost_critic_optimizer.state_dict()
                         },
                         itr = epoch
                     )

@@ -123,7 +123,8 @@ class Logger:
         level: int = 1,
         use_tensorboard=True,
         verbose=True,
-        wandb_project_name = None
+        wandb_project_name = None,
+        task_name = None
     ):
         self.log_dir = log_dir
         self.debug = debug
@@ -157,7 +158,7 @@ class Logger:
         self.use_wandb = False
         if wandb_project_name is not None:
             self.use_wandb = True
-            wandb.init(project = wandb_project_name)
+            wandb.init(project = wandb_project_name, name = task_name)
 
 
     def close(self):
@@ -337,7 +338,8 @@ class EpochLogger(Logger):
         level: int = 1,
         use_tensorboard=True,
         verbose=True,
-        wandb_project_name = None
+        wandb_project_name = None,
+        task_name = None
     ):
         super().__init__(
             log_dir=log_dir,
@@ -347,7 +349,8 @@ class EpochLogger(Logger):
             level=level,
             use_tensorboard=use_tensorboard,
             verbose=verbose,
-            wandb_project_name = wandb_project_name
+            wandb_project_name = wandb_project_name,
+            task_name = task_name
         )
         self.epoch_dict = dict()
 

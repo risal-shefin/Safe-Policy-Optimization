@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
     print("======= commands to run:")
     for command in commands:
-        print(command)
+        print(command, flush=True)
 
     if args.workers > 0:
         from concurrent.futures import ThreadPoolExecutor
